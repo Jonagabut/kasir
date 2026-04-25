@@ -40,22 +40,30 @@ const DB = {
     syncDown: async () => {
         if (!supabaseClient) return false;
         try {
+            console.log("Memulai sinkronisasi cloud...");
             // Pull Products
             const { data: cloudProds, error: pErr } = await supabaseClient.from('kw_products').select('*');
-            if (!pErr && cloudProds) {
+            if (pErr) {
+                console.warn("Gagal ambil produk dari cloud (401?), menggunakan data lokal.");
+            } else if (cloudProds) {
                 products = cloudProds;
                 DB.set(DB_KEY_PROD, products);
             }
 
-            // Pull Transactions (Optional: limit to last 100 for speed)
-            const { data: cloudTrx, error: tErr } = await supabaseClient.from('kw_transactions').select('*').order('created_at', { ascending: false }).limit(100);
+            // Pull Transactions
+            const { data: cloudTrx, error: tErr } = await supabaseClient.from('kw_transactions').select('*').order('created_at', { ascending: false }).limit(50);
             if (!tErr && cloudTrx) {
-                // Mapping items back if needed (complex)
                 transactions = cloudTrx;
                 DB.set(DB_KEY_TRX, transactions);
             }
+            
+            renderKasir(); // Paksa render ulang setelah dapat data
+            renderManageProducts();
             return true;
-        } catch (e) { console.error(e); return false; }
+        } catch (e) { 
+            console.error("Critical Sync Error:", e); 
+            return false; 
+        }
     },
 
     // Cloud Sync: Upload single product
@@ -130,12 +138,14 @@ async function showModal(opts) {
     return new Promise((resolve) => {
         const handleConfirm = () => {
             overlay.classList.remove('show');
+            $('#modal-overlay').style.display = 'none'; // Paksa tutup
             cleanup();
             if (opts.hasInput) resolve($('#modal-input').value);
             else resolve(true);
         };
         const handleCancel = () => {
             overlay.classList.remove('show');
+            $('#modal-overlay').style.display = 'none'; // Paksa tutup
             cleanup();
             resolve(null);
         };
@@ -197,10 +207,12 @@ function renderKasir() {
     grid.style.display = 'grid';
     $('#empty-products-msg').style.display = 'none';
     
-    grid.innerHTML = filtered.map(p => {
+    grid.innerHTML = filtered.map((p, idx) => {
         const inCart = cart.find(c => c.id === p.id);
         return `
-            <div class="p-card ${p.stock <= 0 ? 'out' : ''} ${inCart ? 'in-cart' : ''}" onclick="addToCart('${p.id}', this)">
+            <div class="p-card ${p.stock <= 0 ? 'out' : ''} ${inCart ? 'in-cart' : ''}" 
+                 onclick="addToCart('${p.id}', this)"
+                 style="animation: slideUp 0.3s ease forwards ${idx * 0.05}s; opacity: 0;">
                 ${inCart ? `<span class="p-qty-badge">${inCart.qty}</span>` : ''}
                 <span class="p-emoji">${getIcon(p.category)}</span>
                 <div class="p-name">${p.name}</div>
@@ -212,7 +224,20 @@ function renderKasir() {
 }
 
 function getIcon(cat) {
-    const icons = { 'Ice Cream': '🍦', 'Es Stick': '🍡', 'Es Krim Bar': '🍫', 'Es Pop': '🧊', 'Cone': '🍧', 'Minuman': '🥤', 'Makanan': '🍜', 'Snack': '🍪', 'Rokok': '🚬', 'Sembako': '🌾' };
+    const icons = { 
+        'Ice Cream': '🍦', 
+        'Es Stick': '🍡', 
+        'Es Krim Bar': '🍫', 
+        'Es Pop': '🧊', 
+        'Cone': '🍧', 
+        'Minuman': '🥤', 
+        'Makanan': '🍜', 
+        'Snack': '🍪', 
+        'Rokok': '🚬', 
+        'Sembako': '🌾',
+        'Kebutuhan': '🧴',
+        'Lainnya': '📦'
+    };
     return icons[cat] || '📦';
 }
 
@@ -605,6 +630,23 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#floating-cart-btn').addEventListener('click', openCartDrawer);
     $('#cart-overlay').addEventListener('click', closeCartDrawer);
     $('#btn-close-success').addEventListener('click', () => $('#success-overlay').classList.remove('show'));
+    
+    // Aktifkan Tombol Tambah Produk
+    const btnShowForm = $('#btn-show-form');
+    if (btnShowForm) {
+        btnShowForm.addEventListener('click', () => {
+            $('#product-form').reset();
+            $('#form-id').value = '';
+            $('#form-title').textContent = '➕ Tambah Produk Baru';
+            $('#product-form-card').style.display = 'block';
+            $('#form-name').focus();
+        });
+    }
+
+    // Tombol Batal/Tutup Form
+    const hideForm = () => { $('#product-form-card').style.display = 'none'; };
+    $('#btn-close-form') && $('#btn-close-form').addEventListener('click', hideForm);
+    $('#btn-cancel-form') && $('#btn-cancel-form').addEventListener('click', hideForm);
     
     // Initial renders
     renderKasir();
