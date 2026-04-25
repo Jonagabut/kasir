@@ -5,53 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kasir Warung - Sistem POS Digital</title>
     <meta name="theme-color" content="#12141c">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
+    <div id="toast-container" class="toast-container"></div>
 
-    <!-- ===== MOBILE BOTTOM NAVIGATION ===== -->
-    <nav class="bottom-nav" id="bottom-nav">
-        <button class="tab-btn active" data-page="kasir">
-            <span class="tab-icon">🛒</span>
-            <span class="tab-label">Kasir</span>
-            <span class="badge" id="badge-cart-mobile" style="display:none;">0</span>
-        </button>
-        <button class="tab-btn" data-page="produk">
-            <span class="tab-icon">📦</span>
-            <span class="tab-label">Produk</span>
-        </button>
-        <button class="tab-btn" data-page="riwayat">
-            <span class="tab-icon">📋</span>
-            <span class="tab-label">Riwayat</span>
-        </button>
-        <button class="tab-btn" data-page="dashboard">
-            <span class="tab-icon">📊</span>
-            <span class="tab-label">Dashboard</span>
-        </button>
-    </nav>
-
-    <!-- ===== DESKTOP SIDEBAR ===== -->
+    <!-- Sidebar (Desktop) -->
     <aside class="sidebar">
         <div class="sidebar-header">
-            <div class="brand-icon">🏪</div>
+            <div class="brand-icon">🍦</div>
             <div class="brand-info">
-                <h1>Kasir<span>Warung</span></h1>
-                <p>Sistem Kasir Digital</p>
+                <h1>Kasir<span>warung denok</span></h1>
+                <p>Digital POS System</p>
             </div>
         </div>
         <nav class="sidebar-nav">
             <button class="nav-btn active" data-page="kasir">
                 <span class="nav-icon">🛒</span>
                 <span class="nav-label">Kasir</span>
-                <span class="badge" id="badge-cart-desktop" style="display:none;">0</span>
             </button>
             <button class="nav-btn" data-page="produk">
                 <span class="nav-icon">📦</span>
                 <span class="nav-label">Kelola Produk</span>
             </button>
             <button class="nav-btn" data-page="riwayat">
-                <span class="nav-icon">📋</span>
+                <span class="nav-icon">🧾</span>
                 <span class="nav-label">Riwayat Transaksi</span>
             </button>
             <button class="nav-btn" data-page="dashboard">
@@ -60,26 +42,86 @@
             </button>
         </nav>
         <div class="sidebar-footer">
-            <div class="clock" id="clock-desktop">00:00</div>
-            <div class="date" id="date-desktop">-</div>
+            <div id="clock-desktop" class="clock">00:00</div>
+            <div id="date-desktop" class="date">Memuat tanggal...</div>
             <div class="db-status">
-                <span class="db-dot"></span>
-                <span>Local DB Active</span>
+                <div class="db-dot"></div>
+                <span>Supabase Connected</span>
             </div>
         </div>
     </aside>
 
-    <!-- ===== MAIN CONTENT ===== -->
     <main class="main-content">
-        
-        <!-- ========== PAGE: KASIR ========== -->
-        <section class="page active" id="page-kasir">
+        <!-- Dashboard Page -->
+        <section id="page-dashboard" class="page">
             <div class="page-header">
                 <div>
-                    <h2 class="page-title">Kasir</h2>
-                    <p class="page-subtitle">Pilih produk dan proses pembayaran</p>
+                    <h2 class="page-title">Ringkasan Warung</h2>
+                    <p class="page-subtitle">Statistik penjualan Anda hari ini</p>
                 </div>
-                <div class="clock" id="clock-mobile">00:00</div>
+            </div>
+
+            <div class="stats-grid mb-4">
+                <div class="stat-card">
+                    <div class="s-icon purple">💰</div>
+                    <div>
+                        <span class="s-label">Total Omset</span>
+                        <h3 id="dash-sales" class="s-value">Rp 0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="s-icon green">📈</div>
+                    <div>
+                        <span class="s-label">Total Laba</span>
+                        <h3 id="dash-profit" class="s-value">Rp 0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="s-icon blue">🧾</div>
+                    <div>
+                        <span class="s-label">Transaksi</span>
+                        <h3 id="dash-trx" class="s-value">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="s-icon orange">🍕</div>
+                    <div>
+                        <span class="s-label">Avg. Order</span>
+                        <h3 id="dash-avg" class="s-value">Rp 0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-cols">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>7 Hari Terakhir</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="sales-chart"></canvas>
+                        <div id="chart-empty" class="chart-empty">Belum ada data grafik</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Stok Menipis / Habis</h3>
+                    </div>
+                    <div id="dash-low-stock" class="list-group"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Kasir Page -->
+        <section id="page-kasir" class="page active">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">Mesin Kasir</h2>
+                    <p class="page-subtitle">Pilih produk dan catat transaksi</p>
+                </div>
+                <div class="header-right">
+                    <div id="low-stock-banner" class="low-stock-banner" style="display:none"></div>
+                    <div id="clock-mobile" class="clock">00:00</div>
+                </div>
             </div>
 
             <div class="kasir-layout">
@@ -87,314 +129,284 @@
                     <div class="search-filter-box">
                         <div class="search-wrapper">
                             <span class="search-icon">🔍</span>
-                            <input type="text" id="search-product" placeholder="Cari nama produk..." autocomplete="off">
-                            <button id="clear-search" class="icon-btn" style="display:none;">✕</button>
+                            <input type="text" id="search-product" placeholder="Cari nama barang...">
+                            <button id="clear-search" class="icon-btn" style="display:none">✕</button>
                         </div>
-                        <div class="category-scroll" id="category-chips">
-                            <!-- Categories generated via JS -->
+                        <div id="category-chips" class="category-scroll">
+                            <!-- Chips loaded via JS -->
                         </div>
                     </div>
-
-                    <div class="product-grid" id="product-grid">
-                        <!-- Products generated via JS -->
+                    <div id="product-grid" class="product-grid">
+                        <!-- Products loaded via JS -->
                     </div>
-                    <div class="empty-state" id="empty-products-msg" style="display:none;">
-                        <div class="empty-emoji">📦</div>
+                    <div id="empty-products-msg" class="empty-state" style="display:none">
+                        <span class="empty-emoji">🏜️</span>
                         <h3>Produk Tidak Ditemukan</h3>
-                        <p>Belum ada produk atau pencarian tidak cocok.</p>
+                        <p>Coba kata kunci lain atau pilih kategori Semua</p>
                     </div>
                 </div>
 
-                <!-- Floating Cart Button for Mobile -->
-                <button class="floating-cart-btn" id="floating-cart-btn">
-                    <span>🧾 Keranjang</span>
-                    <span class="badge" id="badge-cart-float">0</span>
-                    <span class="fc-total" id="fc-total">Rp 0</span>
-                </button>
-
-                <!-- Cart Panel -->
-                <div class="cart-overlay" id="cart-overlay"></div>
-                <div class="cart-panel" id="cart-panel">
+                <!-- Desktop Cart Area -->
+                <div class="cart-panel desktop-only">
                     <div class="cart-header">
                         <h3>Keranjang Belanja</h3>
                         <div class="cart-actions">
-                            <button class="btn btn-ghost btn-sm" id="btn-clear-cart">🗑️ Kosongkan</button>
-                            <button class="icon-btn cart-close" id="btn-close-cart">✕</button>
+                            <button id="btn-clear-cart" class="icon-btn" title="Kosongkan">🗑️</button>
                         </div>
                     </div>
-                    
-                    <div class="cart-items" id="cart-items">
-                        <div class="empty-state small" id="empty-cart-msg">
-                            <div class="empty-emoji">🛒</div>
-                            <p>Keranjang kosong</p>
-                        </div>
+                    <div id="cart-items" class="cart-items">
+                        <!-- Cart items loaded via JS -->
                     </div>
-
                     <div class="cart-summary">
-                        <div class="summary-row">
-                            <span>Total Item</span>
-                            <span id="cart-total-items">0</span>
-                        </div>
-                        <div class="summary-row total">
-                            <span>Total Bayar</span>
-                            <span class="highlight-price" id="cart-total-price">Rp 0</span>
-                        </div>
-
-                        <div class="payment-section">
-                            <label>Uang Diterima dari Pembeli</label>
-                            <input type="number" id="payment-amount" placeholder="0" min="0">
-                            <div class="quick-pay" id="quick-pay-chips">
-                                <!-- Quick pay amounts generated via JS -->
+                        <div class="payment-method-group">
+                            <label>Metode Pembayaran</label>
+                            <div class="pay-method-btns">
+                                <button class="pay-method-btn active" data-method="tunai">💵 Tunai</button>
+                                <button class="pay-method-btn" data-method="qris">📲 QRIS</button>
+                                <button class="pay-method-btn" data-method="transfer">🏦 Bank</button>
                             </div>
                         </div>
-
-                        <div class="change-box" id="change-box" style="display:none;">
-                            <span>Kembalian</span>
-                            <span id="change-amount">Rp 0</span>
+                        <div class="summary-row total">
+                            <span>TOTAL</span>
+                            <span id="cart-total-price" class="highlight-price">Rp 0</span>
                         </div>
-
-                        <button class="btn btn-primary btn-block btn-lg" id="btn-process-pay" disabled>
-                            💰 Proses Pembayaran
-                        </button>
+                        <div id="cash-payment-section">
+                            <div class="payment-section">
+                                <label>Uang Bayar</label>
+                                <input type="number" id="payment-amount" placeholder="0" inputmode="numeric">
+                                <div id="quick-pay-chips" class="quick-pay"></div>
+                            </div>
+                            <div id="change-box" class="change-box" style="display:none">
+                                <span>Kembalian</span>
+                                <span id="change-amount">Rp 0</span>
+                            </div>
+                        </div>
+                        <div class="note-group mb-3">
+                            <label>Catatan (Opsional)</label>
+                            <input type="text" id="trx-note" placeholder="Contoh: Titip ke..." maxlength="40">
+                        </div>
+                        <button id="btn-process-pay" class="btn btn-primary btn-lg btn-block" disabled>BAYAR SEKARANG</button>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ========== PAGE: PRODUK ========== -->
-        <section class="page" id="page-produk">
+        <!-- Manage Products Page -->
+        <section id="page-produk" class="page">
             <div class="page-header">
                 <div>
-                    <h2 class="page-title">Kelola Produk</h2>
-                    <p class="page-subtitle">Tambah, edit, dan hapus data produk</p>
+                    <h2 class="page-title">Kelola Inventori</h2>
+                    <p class="page-subtitle">Update stok dan harga barang</p>
                 </div>
-                <button class="btn btn-primary btn-sm" id="btn-show-form">➕ Tambah Produk</button>
+                <div class="form-actions">
+                    <button id="btn-show-form" class="btn btn-primary">➕ Tambah Produk</button>
+                    <button id="btn-reset-products" class="btn btn-ghost">🔄 Reset Katalog</button>
+                </div>
             </div>
 
-            <!-- Product Form Card -->
-            <div class="card form-card" id="product-form-card" style="display:none;">
+            <div id="product-form-card" class="card form-card" style="display:none">
                 <div class="card-header">
                     <h3 id="form-title">Tambah Produk Baru</h3>
-                    <button class="icon-btn" id="btn-close-form">✕</button>
+                    <button id="btn-close-form" class="icon-btn">✕</button>
                 </div>
                 <div class="card-body">
                     <form id="product-form">
                         <input type="hidden" id="form-id">
+                        <div class="form-group">
+                            <label>Nama Produk <span class="required">*</span></label>
+                            <input type="text" id="form-name" required placeholder="Contoh: Aice Mochi Vanilla">
+                        </div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label>Nama Produk <span class="required">*</span></label>
-                                <input type="text" id="form-name" required placeholder="Contoh: Indomie Goreng">
+                                <label>Harga Jual <span class="required">*</span></label>
+                                <input type="number" id="form-price" required placeholder="0">
                             </div>
                             <div class="form-group">
-                                <label>Harga Jual (Rp) <span class="required">*</span></label>
-                                <input type="number" id="form-price" required min="0" placeholder="Contoh: 3500">
+                                <label>Harga Modal</label>
+                                <input type="number" id="form-cost" placeholder="0">
                             </div>
-                            <div class="form-group">
-                                <label>Harga Modal (Rp)</label>
-                                <input type="number" id="form-cost" min="0" placeholder="Opsional untuk hitung laba">
-                            </div>
+                        </div>
+                        <div class="form-grid">
                             <div class="form-group">
                                 <label>Stok Awal <span class="required">*</span></label>
-                                <input type="number" id="form-stock" required min="0" placeholder="Jumlah stok">
+                                <input type="number" id="form-stock" required placeholder="0">
                             </div>
                             <div class="form-group">
                                 <label>Kategori</label>
                                 <select id="form-category">
-                                    <option value="">-- Pilih Kategori --</option>
                                     <option value="Ice Cream">🍦 Ice Cream</option>
-                                    <option value="Makanan">🍜 Makanan</option>
+                                    <option value="Es Stick">🍡 Es Stick</option>
+                                    <option value="Es Krim Bar">🍫 Es Krim Bar</option>
+                                    <option value="Es Pop">🧊 Es Pop</option>
+                                    <option value="Cone">🍧 Cone</option>
                                     <option value="Minuman">🥤 Minuman</option>
+                                    <option value="Makanan">🍜 Makanan</option>
                                     <option value="Snack">🍪 Snack</option>
                                     <option value="Rokok">🚬 Rokok</option>
                                     <option value="Sembako">🌾 Sembako</option>
-                                    <option value="Kebutuhan">🧴 Kebutuhan Harian</option>
+                                    <option value="Kebutuhan">🧴 Kebutuhan</option>
                                     <option value="Lainnya">📦 Lainnya</option>
                                 </select>
                             </div>
                         </div>
                         <div class="form-actions mt-4">
-                            <button type="submit" class="btn btn-primary">💾 Simpan Produk</button>
-                            <button type="button" class="btn btn-ghost" id="btn-cancel-form">Batal</button>
+                            <button type="submit" class="btn btn-primary">Simpan Produk</button>
+                            <button type="button" id="btn-cancel-form" class="btn btn-ghost">Batal</button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="search-wrapper mb-3">
-                <span class="search-icon">🔍</span>
-                <input type="text" id="search-manage-product" placeholder="Cari nama produk di daftar...">
-            </div>
-
-            <div class="stats-row mb-3">
-                <div class="mini-stat">Total Produk: <b id="manage-total-products">0</b></div>
-                <div class="mini-stat">Total Stok: <b id="manage-total-stock">0</b></div>
-            </div>
-
-            <div class="product-list" id="manage-product-list">
-                <!-- Product rows generated via JS -->
-            </div>
-            
-            <div class="empty-state" id="manage-empty-msg" style="display:none;">
-                <div class="empty-emoji">📦</div>
-                <p>Tidak ada produk ditemukan.</p>
+            <div class="card">
+                <div class="filter-row">
+                    <div style="flex:1">
+                        <input type="text" id="search-manage-product" placeholder="Cari di inventori...">
+                    </div>
+                    <div class="stats-row">
+                        <div class="mini-stat">Total: <b id="manage-total-products">0</b></div>
+                        <div class="mini-stat">Stok: <b id="manage-total-stock">0</b></div>
+                        <div class="mini-stat">Aset: <b id="manage-asset-value">Rp 0</b></div>
+                    </div>
+                </div>
+                <div id="manage-product-list" class="product-list">
+                    <!-- Manage list via JS -->
+                </div>
+                <div id="manage-empty-msg" class="empty-state" style="display:none">
+                    <span class="empty-emoji">🏜️</span>
+                    <h3>Inventori Kosong</h3>
+                    <p>Klik tombol Tambah Produk untuk memulai</p>
+                </div>
             </div>
         </section>
 
-        <!-- ========== PAGE: RIWAYAT ========== -->
-        <section class="page" id="page-riwayat">
+        <!-- Transaction History Page -->
+        <section id="page-riwayat" class="page">
             <div class="page-header">
                 <div>
                     <h2 class="page-title">Riwayat Transaksi</h2>
-                    <p class="page-subtitle">Daftar semua penjualan warung</p>
+                    <p class="page-subtitle">Laporan penjualan warung Anda</p>
                 </div>
-                <button class="btn btn-danger btn-sm" id="btn-clear-history">🗑️ Hapus Semua</button>
-            </div>
-
-            <div class="filter-box card mb-4">
-                <div class="form-group">
-                    <label>Filter Tanggal</label>
-                    <div style="display:flex; gap:10px;">
-                        <input type="date" id="filter-date" style="flex:1;">
-                        <button class="btn btn-ghost" id="btn-clear-filter">Tampilkan Semua</button>
-                    </div>
+                <div class="header-right">
+                    <button id="btn-export" class="btn btn-ghost">📤 Export JSON</button>
+                    <label for="btn-import" class="btn btn-ghost" style="cursor:pointer">📥 Import JSON</label>
+                    <input type="file" id="btn-import" style="display:none" accept=".json">
+                    <button id="btn-clear-history" class="btn btn-ghost" style="color:var(--danger)">🗑️ Hapus Semua</button>
                 </div>
             </div>
 
             <div class="history-stats">
                 <div class="h-stat">
-                    <span>Total Transaksi</span>
+                    <span>Total Omset</span>
+                    <h3 id="history-revenue">Rp 0</h3>
+                </div>
+                <div class="h-stat">
+                    <span>Total Laba</span>
+                    <h3 id="history-profit" class="highlight-profit">Rp 0</h3>
+                </div>
+                <div class="h-stat">
+                    <span>Trx Hari Ini</span>
                     <h3 id="history-count">0</h3>
                 </div>
-                <div class="h-stat">
-                    <span>Total Pendapatan</span>
-                    <h3 class="highlight-price" id="history-revenue">Rp 0</h3>
-                </div>
-                <div class="h-stat">
-                    <span>Estimasi Laba</span>
-                    <h3 class="highlight-profit" id="history-profit">Rp 0</h3>
+            </div>
+
+            <div class="filter-box card mb-4">
+                <div class="filter-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Filter Tanggal</label>
+                        <input type="date" id="filter-date">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Metode</label>
+                        <select id="filter-method">
+                            <option value="">Semua</option>
+                            <option value="tunai">Tunai</option>
+                            <option value="qris">QRIS</option>
+                            <option value="transfer">Bank</option>
+                        </select>
+                    </div>
+                    <button id="btn-clear-filter" class="btn btn-ghost">Reset Filter</button>
                 </div>
             </div>
 
-            <div class="history-list" id="history-list">
-                <!-- Transactions generated via JS -->
+            <div id="history-list" class="history-list">
+                <!-- Transactions via JS -->
             </div>
-            <div class="empty-state" id="history-empty-msg" style="display:none;">
-                <div class="empty-emoji">📋</div>
-                <p>Belum ada transaksi.</p>
-            </div>
-        </section>
-
-        <!-- ========== PAGE: DASHBOARD ========== -->
-        <section class="page" id="page-dashboard">
-            <div class="page-header">
-                <div>
-                    <h2 class="page-title">Dashboard</h2>
-                    <p class="page-subtitle">Ringkasan bisnis dan sistem</p>
-                </div>
-            </div>
-
-            <h3 class="section-title">Performa Hari Ini</h3>
-            <div class="stats-grid mb-4">
-                <div class="stat-card">
-                    <div class="s-icon purple">💰</div>
-                    <div class="s-info">
-                        <span class="s-label">Penjualan Hari Ini</span>
-                        <span class="s-value" id="dash-sales">Rp 0</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="s-icon green">📈</div>
-                    <div class="s-info">
-                        <span class="s-label">Estimasi Laba</span>
-                        <span class="s-value" id="dash-profit">Rp 0</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="s-icon blue">🧾</div>
-                    <div class="s-info">
-                        <span class="s-label">Jumlah Transaksi</span>
-                        <span class="s-value" id="dash-trx">0</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="dashboard-cols">
-                <div class="dashboard-col">
-                    <h3 class="section-title">Informasi Produk</h3>
-                    <div class="card mb-3">
-                        <div class="list-group">
-                            <div class="list-item">
-                                <span>Total Macam Produk</span>
-                                <b id="dash-product-types">0</b>
-                            </div>
-                            <div class="list-item">
-                                <span>Estimasi Nilai Stok (Aset)</span>
-                                <b class="highlight-price" id="dash-asset-value">Rp 0</b>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h3 class="section-title">⚠️ Stok Menipis (Sisa ≤ 5)</h3>
-                    <div class="card mb-3">
-                        <div class="list-group" id="dash-low-stock">
-                            <!-- Generated via JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-col">
-                    <h3 class="section-title">🏆 Produk Terlaris</h3>
-                    <div class="card mb-4">
-                        <div class="list-group" id="dash-top-products">
-                            <!-- Generated via JS -->
-                        </div>
-                    </div>
-
-                    <h3 class="section-title">💾 Manajemen Database</h3>
-                    <div class="card">
-                        <div class="card-body">
-                            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">
-                                Data disimpan aman di browser device Anda menggunakan LocalStorage.
-                            </p>
-                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                <button class="btn btn-primary btn-sm" id="btn-export">📥 Backup Data</button>
-                                <label class="btn btn-ghost btn-sm" style="cursor:pointer; margin:0;">
-                                    📤 Restore Data
-                                    <input type="file" id="btn-import" accept=".json" style="display:none;">
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div id="history-empty-msg" class="empty-state" style="display:none">
+                <span class="empty-emoji">📁</span>
+                <h3>Belum Ada Transaksi</h3>
+                <p>Transaksi yang selesai akan muncul di sini</p>
             </div>
         </section>
     </main>
 
-    <!-- ===== SUCCESS OVERLAY ===== -->
-    <div class="success-overlay" id="success-overlay">
+    <!-- Mobile Navigation -->
+    <nav class="bottom-nav">
+        <button class="tab-btn active" data-page="kasir">
+            <div class="tab-icon">🛒</div>
+            <span class="tab-label">Kasir</span>
+            <div id="badge-cart-mobile" class="badge tab-badge" style="display:none">0</div>
+        </button>
+        <button class="tab-btn" data-page="produk">
+            <div class="tab-icon">📦</div>
+            <span class="tab-label">Produk</span>
+        </button>
+        <button class="tab-btn" data-page="riwayat">
+            <div class="tab-icon">🧾</div>
+            <span class="tab-label">Riwayat</span>
+        </button>
+        <button class="tab-btn" data-page="dashboard">
+            <div class="tab-icon">📊</div>
+            <span class="tab-label">Menu</span>
+        </button>
+    </nav>
+
+    <!-- Floating Cart (Mobile) -->
+    <button id="floating-cart-btn" class="floating-cart-btn" style="display:none">
+        🛒 Lihat Keranjang
+        <div id="badge-cart-float" class="badge" style="display:none">0</div>
+        <div id="fc-total" class="fc-total">Rp 0</div>
+    </button>
+
+    <!-- Cart Overlay & Drawer (Mobile) -->
+    <div id="cart-overlay" class="cart-overlay"></div>
+    <div id="cart-panel" class="cart-panel mobile-only">
+        <!-- Reused content via JS -->
+    </div>
+
+    <!-- Success Overlay -->
+    <div id="success-overlay" class="success-overlay">
         <div class="success-card">
-            <div class="success-icon">✅</div>
+            <div class="success-icon">🎉</div>
             <h2>Pembayaran Berhasil!</h2>
             <div class="receipt-summary">
-                <div class="rs-row">
-                    <span>Total Belanja</span>
-                    <span id="succ-total">Rp 0</span>
-                </div>
-                <div class="rs-row">
-                    <span>Uang Diterima</span>
-                    <span id="succ-pay">Rp 0</span>
-                </div>
-                <div class="rs-row highlight">
-                    <span>Kembalian</span>
-                    <span id="succ-change">Rp 0</span>
-                </div>
+                <div class="rs-row"><span>Metode</span><span id="succ-method">Tunai</span></div>
+                <div class="rs-row"><span>Total Belanja</span><span id="succ-total">Rp 0</span></div>
+                <div id="succ-note-row" class="rs-row" style="display:none"><span>Catatan</span><span id="succ-note"></span></div>
+                <div class="rs-row"><span>Uang Bayar</span><span id="succ-pay">Rp 0</span></div>
+                <div id="succ-change-row" class="rs-row highlight"><span>Kembalian</span><span id="succ-change">Rp 0</span></div>
             </div>
-            <button class="btn btn-primary btn-block btn-lg mt-4" id="btn-close-success">Selesai (OK)</button>
+            <div class="success-actions">
+                <button id="btn-print-receipt" class="btn btn-ghost btn-block">🖨️ Cetak Struk</button>
+                <button id="btn-close-success" class="btn btn-primary btn-block">Transaksi Baru</button>
+            </div>
         </div>
     </div>
 
-    <!-- ===== TOAST NOTIFICATIONS ===== -->
-    <div class="toast-container" id="toast-container"></div>
+    <!-- Custom Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-box">
+            <span id="modal-icon" class="modal-icon">⚠️</span>
+            <h3 id="modal-title" class="modal-title">Konfirmasi</h3>
+            <p id="modal-body" class="modal-body"></p>
+            <div id="modal-input-wrap" class="modal-input-wrap" style="display:none">
+                <input type="number" id="modal-input" class="modal-input" placeholder="0">
+            </div>
+            <div class="modal-actions">
+                <button id="btn-modal-cancel" class="btn btn-ghost">Batal</button>
+                <button id="btn-modal-confirm" class="btn btn-primary">Ya, Lanjutkan</button>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
