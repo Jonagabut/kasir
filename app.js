@@ -781,15 +781,15 @@ function renderTransactionTable() {
     }
     
     tbody.innerHTML = state.transactions.map(t => {
-        const itemsCount = Array.isArray(t.items)
-            ? t.items.reduce((sum, item) => sum + (item.qty || 0), 0)
-            : 0;
+        const itemsList = Array.isArray(t.items)
+            ? t.items.map(item => `${item.name} (x${item.qty})`).join('<br>')
+            : '-';
 
         return `
         <tr>
             <td><code>${t.id}</code></td>
             <td>${new Date(t.date).toLocaleString('id-ID')}</td>
-            <td>${itemsCount}</td>
+            <td style="font-size: 11px; max-width: 150px; white-space: normal;">${itemsList}</td>
             <td>${formatRp(t.total)}</td>
             <td>${formatRp(t.profit || 0)}</td>
             <td>${formatRp(t.pay || 0)}</td>
