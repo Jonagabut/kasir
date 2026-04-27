@@ -272,15 +272,16 @@ function renderKasirProducts() {
     
     const grid = $('#product-grid');
     grid.innerHTML = filtered.map(p => `
-        <div class="product-card ${p.stock <= 0 ? 'disabled' : ''}" 
+        <div class="product-card ${p.stock <= 0 ? 'disabled' : ''} ${p.stock <= 2 ? 'low-stock' : ''}" 
              onclick="addToCart('${p.id}')" 
-             title="${p.name}">
+             title="${p.name}${p.stock <= 2 ? ' - Stok rendah!' : ''}">
             <div class="product-emoji">📦</div>
             <div class="product-name">${p.name}</div>
             <div class="product-category">${p.category || 'Umum'}</div>
             <div class="product-price">${formatRp(p.price)}</div>
-            <div class="product-stock ${p.stock <= 5 ? 'low' : ''}">
+            <div class="product-stock ${p.stock <= 5 ? 'low' : ''} ${p.stock <= 0 ? 'out' : ''}">
                 Stok: ${p.stock}
+                ${p.stock <= 2 ? ' ⚠️' : ''}
             </div>
         </div>
     `).join('');
@@ -301,6 +302,7 @@ function addToCart(productId) {
             existingItem.qty++;
         } else {
             alert('❌ Stok tidak cukup!');
+            return;
         }
     } else {
         state.cart.push({
@@ -435,19 +437,24 @@ function selectPaymentMethod(method) {
 }
 
 function calculateChange() {
-    const total = parseInt($('#pay-total').textContent.replace(/\D/g, ''));
+    const total = parseInt($('#pay-total').textContent.replace(/\D/g, '')) || 0;
     const paid = parseInt($('#cash-amount').value) || 0;
     const changeInfo = $('#change-info');
+    const changeAmount = $('#change-amount');
     
-    if (paid >= total) {
+    if (paid >= total && total > 0) {
+        const change = paid - total;
         changeInfo.style.display = 'block';
-        $('#change-amount').textContent = formatRp(paid - total);
+        changeAmount.textContent = formatRp(change);
+        changeAmount.style.color = change > 0 ? 'var(--success)' : 'var(--text)';
     } else {
         changeInfo.style.display = 'none';
     }
     
     // Clear preset button active state when user types manually
-    $$('.preset-btn').forEach(btn => btn.classList.remove('active'));
+    if (paid !== total) {
+        $$('.preset-btn').forEach(btn => btn.classList.remove('active'));
+    }
 }
 
 function selectPresetAmount(amount) {
@@ -606,20 +613,25 @@ function printReceipt() {
 // ==================== PRODUK MANAGEMENT ====================
 async function handleProductSubmit(e) {
     e.preventDefault();
-    
+
     const name = $('#form-name').value.trim();
     const category = $('#form-category').value;
     const price = parseInt($('#form-price').value);
     const cost = parseInt($('#form-cost').value) || 0;
     const stock = parseInt($('#form-stock').value);
-    
+    const productId = e.target.dataset.productId;
+
     if (!name || !category) {
         alert('❌ Nama dan kategori harus diisi!');
         return;
     }
-    
-    if (price <= 0) {
-        alert('❌ Harga harus lebih dari 0!');
+
+    // Check for duplicate product names (case insensitive)
+    const existingProduct = state.products.find(p => 
+        p.name.toLowerCase() === name.toLowerCase() && p.id !== productId
+    );
+    if (existingProduct) {
+        alert('❌ Produk dengan nama yang sama sudah ada!');
         return;
     }
     
@@ -627,28 +639,42 @@ async function handleProductSubmit(e) {
         alert('❌ Stok tidak boleh negatif!');
         return;
     }
-    
+
     try {
-        const product = {
-            id: 'PRD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+        const productData = {
             name: name,
             category: category,
             price: price,
             cost: cost,
-            stock: stock
+            stock: stock,
+            updated_at: new Date().toISOString()
         };
-        
-        const { error } = await supabaseClient
-            .from('kw_products')
-            .insert([product]);
-        
-        if (error) throw error;
-        
-        console.log('✅ Produk berhasil ditambahkan');
-        alert('✅ Produk berhasil ditambahkan!');
-        
+
+        let result;
+        if (productId) {
+            // Update existing product
+            result = await supabaseClient
+                .from('kw_products')
+                .update(productData)
+                .eq('id', productId);
+        } else {
+            // Add new product
+            productData.id = 'PRD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            productData.created_at = new Date().toISOString();
+            result = await supabaseClient
+                .from('kw_products')
+                .insert([productData]);
+        }
+
+        if (result.error) throw result.error;
+
+        const successMessage = productId ? '✅ Produk berhasil diperbarui!' : '✅ Produk berhasil ditambahkan!';
+        console.log(productId ? '✅ Produk diperbarui' : '✅ Produk ditambahkan');
+        alert(successMessage);
+
         closeProductModal();
         document.getElementById('product-form').reset();
+        delete e.target.dataset.productId;
         await loadProducts();
         await loadCategories();
     } catch (e) {
@@ -665,6 +691,9 @@ function openProductModal() {
     const categories = state.categories.length ? state.categories : DEFAULT_CATEGORIES;
     populateCategorySelects(categories);
 
+    // Clear any stored product ID
+    delete document.getElementById('product-form').dataset.productId;
+
     $('#product-modal').classList.add('active');
 }
 
@@ -676,9 +705,13 @@ function calculateMargin() {
     const price = parseInt($('#form-price').value) || 0;
     const cost = parseInt($('#form-cost').value) || 0;
     
-    if (price > 0 && cost > 0) {
+    if (price > 0 && cost >= 0) {
         const margin = Math.round(((price - cost) / price) * 100);
-        $('#form-margin').value = Math.max(0, margin);
+        $('#form-margin').value = Math.max(0, Math.min(100, margin));
+    } else if (price > 0) {
+        $('#form-margin').value = '100';
+    } else {
+        $('#form-margin').value = '0';
     }
 }
 
@@ -746,7 +779,27 @@ async function deleteProduct(productId) {
 }
 
 function editProduct(productId) {
-    alert('📝 Fitur edit akan datang segera!');
+    const product = state.products.find(p => p.id === productId);
+    if (!product) {
+        alert('❌ Produk tidak ditemukan!');
+        return;
+    }
+
+    // Populate form with existing data
+    $('#modal-title').textContent = 'Edit Produk';
+    $('#form-name').value = product.name;
+    $('#form-category').value = product.category || '';
+    $('#form-price').value = product.price;
+    $('#form-cost').value = product.cost || 0;
+    $('#form-stock').value = product.stock;
+
+    // Calculate margin
+    calculateMargin();
+
+    // Store product ID for update
+    $('#product-form').dataset.productId = productId;
+
+    $('#product-modal').classList.add('active');
 }
 
 // ==================== LAPORAN ====================
@@ -768,8 +821,37 @@ async function loadReports() {
 }
 
 async function filterTransactions() {
-    // TODO: Implement date filtering
-    await loadReports();
+    const dateFrom = $('#date-from').value;
+    const dateTo = $('#date-to').value;
+
+    try {
+        let query = supabaseClient
+            .from('kw_transactions')
+            .select('*')
+            .order('date', { ascending: false });
+
+        if (dateFrom) {
+            query = query.gte('date', dateFrom + 'T00:00:00.000Z');
+        }
+
+        if (dateTo) {
+            // Add one day to include the end date fully
+            const endDate = new Date(dateTo);
+            endDate.setDate(endDate.getDate() + 1);
+            query = query.lt('date', endDate.toISOString());
+        }
+
+        const { data: transactions, error } = await query;
+
+        if (error) throw error;
+
+        state.transactions = transactions || [];
+        renderTransactionTable();
+        updateReportStats();
+    } catch (e) {
+        console.error('❌ Error filtering transactions:', e);
+        alert('❌ Gagal memfilter transaksi: ' + e.message);
+    }
 }
 
 function renderTransactionTable() {
@@ -820,7 +902,112 @@ function updateReportStats() {
 }
 
 function viewTransactionDetail(transactionId) {
-    alert('📋 Detail transaksi akan ditampilkan segera!');
+    const transaction = state.transactions.find(t => t.id === transactionId);
+    if (!transaction) {
+        alert('❌ Transaksi tidak ditemukan!');
+        return;
+    }
+
+    let detailsHtml = `
+        <div style="padding: 20px; max-width: 500px; margin: 0 auto;">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">Detail Transaksi</h3>
+            <div style="background: var(--dark-2); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>ID Transaksi:</span>
+                    <code>${transaction.id}</code>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Waktu:</span>
+                    <span>${new Date(transaction.date).toLocaleString('id-ID')}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Metode Pembayaran:</span>
+                    <span>${transaction.method === 'cash' ? 'Tunai' : 'Transfer'}</span>
+                </div>
+            </div>
+
+            <h4 style="margin-bottom: 15px;">Daftar Item:</h4>
+            <div style="background: var(--dark-2); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    `;
+
+    if (Array.isArray(transaction.items) && transaction.items.length > 0) {
+        transaction.items.forEach(item => {
+            const subtotal = item.price * item.qty;
+            detailsHtml += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <div style="font-weight: 500;">${item.name}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">${formatRp(item.price)} x ${item.qty}</div>
+                    </div>
+                    <div style="font-weight: 600;">${formatRp(subtotal)}</div>
+                </div>
+            `;
+        });
+    } else {
+        detailsHtml += '<p style="text-align: center; color: var(--text-muted);">Tidak ada data item</p>';
+    }
+
+    detailsHtml += `
+            </div>
+
+            <div style="background: var(--dark-2); padding: 15px; border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Subtotal:</span>
+                    <span>${formatRp(transaction.total + (transaction.discount || 0))}</span>
+                </div>
+                ${transaction.discount ? `<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Diskon:</span>
+                    <span>-${formatRp(transaction.discount)}</span>
+                </div>` : ''}
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; border-top: 1px solid var(--border); padding-top: 10px;">
+                    <span>Total:</span>
+                    <span>${formatRp(transaction.total)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Bayar:</span>
+                    <span>${formatRp(transaction.pay || 0)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 600; color: var(--success);">
+                    <span>Kembalian:</span>
+                    <span>${formatRp(transaction.change || 0)}</span>
+                </div>
+                ${transaction.profit !== undefined ? `<div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--warning);">
+                    <span>Profit:</span>
+                    <span>${formatRp(transaction.profit)}</span>
+                </div>` : ''}
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="closeTransactionDetail()" class="btn btn-primary">Tutup</button>
+            </div>
+        </div>
+    `;
+
+    // Create modal for transaction detail
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'transaction-detail-modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Detail Transaksi</h2>
+                <button class="modal-close" onclick="closeTransactionDetail()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div id="transaction-detail-content">${detailsHtml}</div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+}
+
+function closeTransactionDetail() {
+    const modal = $('#transaction-detail-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 // ==================== DASHBOARD ====================
@@ -852,8 +1039,159 @@ async function loadDashboard() {
         $('#dash-today-revenue').textContent = formatRp(todayRevenue);
         $('#dash-today-profit').textContent = formatRp(todayProfit);
         
+        // Load charts
+        await loadSalesChart();
+        await loadTopProductsChart();
+        
     } catch (e) {
         console.error('❌ Error:', e);
+    }
+}
+
+async function loadSalesChart() {
+    try {
+        // Get last 7 days data
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(endDate.getDate() - 6);
+        
+        const { data: transactions } = await supabaseClient
+            .from('kw_transactions')
+            .select('date, total')
+            .gte('date', startDate.toISOString())
+            .lte('date', endDate.toISOString());
+        
+        // Prepare data for chart
+        const labels = [];
+        const data = [];
+        
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            labels.push(date.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' }));
+            
+            const dayTransactions = transactions?.filter(t => 
+                new Date(t.date).toISOString().split('T')[0] === dateStr
+            ) || [];
+            
+            const dayTotal = dayTransactions.reduce((sum, t) => sum + t.total, 0);
+            data.push(dayTotal);
+        }
+        
+        // Create chart
+        const ctx = document.getElementById('chart-sales').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Penjualan (Rp)',
+                    data: data,
+                    borderColor: 'var(--primary)',
+                    backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatRp(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (e) {
+        console.error('❌ Error loading sales chart:', e);
+        $('#chart-sales').innerHTML = '<p style="color: var(--danger);">Gagal memuat chart</p>';
+    }
+}
+
+async function loadTopProductsChart() {
+    try {
+        // Get recent transactions to calculate top products
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const { data: transactions } = await supabaseClient
+            .from('kw_transactions')
+            .select('items')
+            .gte('date', thirtyDaysAgo.toISOString());
+        
+        // Count product sales
+        const productCounts = {};
+        transactions?.forEach(t => {
+            if (Array.isArray(t.items)) {
+                t.items.forEach(item => {
+                    if (productCounts[item.name]) {
+                        productCounts[item.name] += item.qty;
+                    } else {
+                        productCounts[item.name] = item.qty;
+                    }
+                });
+            }
+        });
+        
+        // Sort and get top 5
+        const sortedProducts = Object.entries(productCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 5);
+        
+        if (sortedProducts.length === 0) {
+            $('#top-products').innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">Belum ada data penjualan</p>';
+            return;
+        }
+        
+        // Create chart
+        const ctx = document.getElementById('top-products').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedProducts.map(([name]) => name.length > 15 ? name.substring(0, 15) + '...' : name),
+                datasets: [{
+                    label: 'Terjual',
+                    data: sortedProducts.map(([, count]) => count),
+                    backgroundColor: 'var(--primary)',
+                    borderColor: 'var(--primary-dark)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (e) {
+        console.error('❌ Error loading top products chart:', e);
+        $('#top-products').innerHTML = '<p style="color: var(--danger);">Gagal memuat chart</p>';
     }
 }
 

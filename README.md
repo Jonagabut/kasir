@@ -4,11 +4,16 @@ Aplikasi Point of Sale (POS) sederhana untuk warung dengan integrasi Supabase.
 
 ## Fitur
 
-- Manajemen produk dengan kategori
-- Sistem kasir dengan keranjang belanja
-- Laporan transaksi
-- Dashboard statistik
-- Responsive design
+- ✅ Manajemen produk dengan kategori
+- ✅ Sistem kasir dengan keranjang belanja
+- ✅ Laporan transaksi dengan filter tanggal
+- ✅ Dashboard dengan chart penjualan dan produk terlaris
+- ✅ Edit dan hapus produk
+- ✅ Detail transaksi lengkap
+- ✅ Print struk dengan styling
+- ✅ Validasi stok dan duplikasi produk
+- ✅ Indikator stok rendah
+- ✅ Responsive design
 
 ## Setup Database
 
@@ -26,12 +31,24 @@ Aplikasi Point of Sale (POS) sederhana untuk warung dengan integrasi Supabase.
 
 - `index.html` - Halaman utama aplikasi
 - `app.js` - Logika aplikasi dan integrasi Supabase
-- `style.css` - Styling responsif
+- `style.css` - Styling responsif dengan print styles
 - `setup-database.sql` - Script setup database
 
 ## Teknologi
 
 - HTML/CSS/JavaScript
 - Supabase (Database & Auth)
+- Chart.js (Charts)
 - Bootstrap Icons
 - Google Fonts (Poppins)
+
+## Update Terbaru
+
+- ✅ Fitur edit produk lengkap
+- ✅ Detail transaksi dengan modal
+- ✅ Filter laporan berdasarkan tanggal
+- ✅ Dashboard dengan chart penjualan 7 hari dan top produk
+- ✅ Print struk dengan CSS print styling
+- ✅ Validasi duplikasi nama produk
+- ✅ Indikator visual stok rendah
+- ✅ Perbaikan perhitungan margin dan validasi input

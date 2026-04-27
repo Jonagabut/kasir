@@ -422,6 +422,11 @@ body {
     cursor: not-allowed;
 }
 
+.product-card.low-stock {
+    border-color: var(--warning);
+    background: rgba(255, 211, 61, 0.05);
+}
+
 .product-emoji {
     font-size: 32px;
 }
@@ -445,6 +450,11 @@ body {
 }
 
 .product-stock.low {
+    color: var(--warning);
+    font-weight: 600;
+}
+
+.product-stock.out {
     color: var(--danger);
     font-weight: 600;
 }
@@ -1727,5 +1737,65 @@ body {
     
     .reports-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ========== PRINT STYLES ========== */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    #receipt-modal,
+    #receipt-modal * {
+        visibility: visible;
+    }
+    
+    #receipt-modal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: white !important;
+    }
+    
+    .modal-content {
+        box-shadow: none !important;
+        border: none !important;
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    .modal-header,
+    .receipt-actions {
+        display: none !important;
+    }
+    
+    .receipt-content {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        color: black !important;
+        background: white !important;
+        padding: 10px !important;
+        margin: 0 !important;
+    }
+    
+    .receipt-line {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        border: none !important;
+        padding: 2px 0 !important;
+    }
+    
+    .receipt-line.total {
+        border-top: 1px dashed black !important;
+        border-bottom: 1px dashed black !important;
+        padding: 5px 0 !important;
+        margin: 10px 0 !important;
+        font-weight: bold;
     }
 }
